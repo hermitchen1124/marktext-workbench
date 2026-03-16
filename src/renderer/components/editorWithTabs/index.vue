@@ -5,12 +5,8 @@
     >
       <tabs v-show="showTabBar"></tabs>
       <div class="container">
-        <json-viewer
-          v-if="shouldShowJsonViewer"
-          :content="markdown"
-        ></json-viewer>
         <editor
-          v-else-if="shouldShowRichEditor"
+          v-if="shouldShowRichEditor"
           :markdown="markdown"
           :cursor="cursor"
           :text-direction="textDirection"
@@ -32,7 +28,6 @@ import { mapState } from 'vuex'
 import Tabs from './tabs.vue'
 import Editor from './editor.vue'
 import SourceCode from './sourceCode.vue'
-import JsonViewer from './jsonViewer.vue'
 import TabNotifications from './notifications.vue'
 
 const MARKDOWN_EDITOR_EXTENSIONS = Object.freeze([
@@ -80,7 +75,6 @@ export default {
     Tabs,
     Editor,
     SourceCode,
-    JsonViewer,
     TabNotifications
   },
   computed: {
@@ -89,10 +83,6 @@ export default {
       sideBarWidth: state => state.layout.sideBarWidth,
       currentFile: state => state.editor.currentFile
     }),
-    isJsonFile () {
-      const { filename = '' } = this.currentFile || {}
-      return /\.json$/i.test(filename)
-    },
     isMarkdownEditorFile () {
       const { filename = '' } = this.currentFile || {}
       const extension = filename.includes('.') ? filename.split('.').pop().toLowerCase() : ''
@@ -103,11 +93,8 @@ export default {
       }
       return MARKDOWN_EDITOR_EXTENSIONS.includes(extension)
     },
-    shouldShowJsonViewer () {
-      return this.isJsonFile && !this.sourceCode
-    },
     shouldShowRichEditor () {
-      return !this.sourceCode && this.isMarkdownEditorFile && !this.isJsonFile
+      return !this.sourceCode && this.isMarkdownEditorFile
     }
   }
 }

@@ -65,6 +65,22 @@ fileAssociations:
   name: "Markdown"
   description: "Markdown document"
   role: "Editor"
+  rank: "Owner"
+  icon: "../resources/icons/md.icns"
+- ext:
+  - "txt"
+  - "text"
+  name: "Text"
+  description: "Text document"
+  role: "Editor"
+  rank: "Owner"
+  icon: "../resources/icons/md.icns"
+- ext:
+  - "json"
+  name: "JSON"
+  description: "JSON document"
+  role: "Editor"
+  rank: "Owner"
   icon: "../resources/icons/md.icns"
 mac:
   artifactName: "marktext-workbench-${arch}-mac.${ext}"
@@ -108,6 +124,8 @@ linux:
   category: "Office;TextEditor;Utility"
   mimeTypes:
   - "text/markdown"
+  - "text/plain"
+  - "application/json"
   icon: "resources/icons"
   desktop:
     StartupWMClass: "marktext"
@@ -137,6 +155,15 @@ linux:
   - ext: "mdtext"
     name: "Markdown"
     description: "Markdown document"
+  - ext: "txt"
+    name: "Text"
+    description: "Text document"
+  - ext: "text"
+    name: "Text"
+    description: "Text document"
+  - ext: "json"
+    name: "JSON"
+    description: "JSON document"
 deb:
   # Custom dependencies:
   depends:
