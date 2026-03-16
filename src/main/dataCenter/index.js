@@ -2,7 +2,6 @@ import fs from 'fs'
 import path from 'path'
 import EventEmitter from 'events'
 import { BrowserWindow, ipcMain, dialog } from 'electron'
-import keytar from 'keytar'
 import schema from './schema'
 import Store from 'electron-store'
 import log from 'electron-log'
@@ -10,6 +9,17 @@ import { ensureDirSync } from 'common/filesystem'
 import { IMAGE_EXTENSIONS } from 'common/filesystem/paths'
 
 const DATA_CENTER_NAME = 'dataCenter'
+let keytar = null
+
+try {
+  // Native module may fail to load in some packaged environments.
+  // Keep app usable by falling back to plain local store.
+  // eslint-disable-next-line global-require
+  keytar = require('keytar')
+} catch (error) {
+  keytar = null
+  log.warn('Keytar unavailable, secure storage fallback enabled:', error && error.message ? error.message : error)
+}
 
 class DataCenter extends EventEmitter {
   constructor (paths) {
@@ -55,6 +65,9 @@ class DataCenter extends EventEmitter {
   async getAll () {
     const { serviceName, encryptKeys } = this
     const data = this.store.store
+    if (!keytar) {
+      return data
+    }
     try {
       const encryptData = await Promise.all(encryptKeys.map(key => {
         return keytar.getPassword(serviceName, key)
@@ -110,7 +123,10 @@ class DataCenter extends EventEmitter {
   getItem (key) {
     const { encryptKeys, serviceName } = this
     if (encryptKeys.includes(key)) {
-      return keytar.getPassword(serviceName, key)
+      if (keytar) {
+        return keytar.getPassword(serviceName, key)
+      }
+      return Promise.resolve(this.store.get(key))
     } else {
       const value = this.store.get(key)
       return Promise.resolve(value)
@@ -124,6 +140,9 @@ class DataCenter extends EventEmitter {
     }
     ipcMain.emit('broadcast-user-data-changed', { [key]: value })
     if (encryptKeys.includes(key)) {
+      if (!keytar) {
+        return this.store.set(key, value)
+      }
       try {
         return await keytar.setPassword(serviceName, key, value)
       } catch (err) {
