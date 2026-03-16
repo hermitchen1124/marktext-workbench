@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs'
 import fsPromises from 'fs/promises'
 import { exec } from 'child_process'
 import dayjs from 'dayjs'
@@ -29,6 +30,9 @@ class App {
     this._openFilesCache = []
     this._openFilesTimer = null
     this._didInitReady = false
+    this._sessionFilePath = path.join(this._accessor.paths.userDataPath, 'last-session.json')
+    this._quitSessionSnapshot = null
+    this._isQuitConfirmed = false
     this._windowManager = this._accessor.windowManager
     // this.launchScreenshotWin = null // The window which call the screenshot.
     // this.shortcutCapture = null
@@ -81,6 +85,8 @@ class App {
     app.on('open-file', this.openFile) // macOS only
 
     app.on('ready', this.ready)
+    app.on('before-quit', this.beforeQuit)
+    app.on('will-quit', this.willQuit)
 
     app.on('window-all-closed', () => {
       // Close all the image path watcher
@@ -213,6 +219,8 @@ class App {
 
     if (_openFilesCache.length) {
       this._openFilesToOpen()
+    } else if (startUpAction === 'lastState' && this._restoreLastSession()) {
+      // Restore handled via _restoreLastSession().
     } else {
       this._createEditorWindow()
     }
@@ -259,6 +267,20 @@ class App {
     }
   }
 
+  beforeQuit = () => {
+    this._isQuitConfirmed = true
+    this._quitSessionSnapshot = this._collectLastSessionSnapshot()
+  }
+
+  willQuit = () => {
+    if (!this._isQuitConfirmed || !this._quitSessionSnapshot) {
+      return
+    }
+    this._persistLastSession(this._quitSessionSnapshot)
+    this._isQuitConfirmed = false
+    this._quitSessionSnapshot = null
+  }
+
   // --- private --------------------------------
 
   /**
@@ -294,6 +316,107 @@ class App {
 
   _openFilesToOpen () {
     this._openPathList(this._openFilesCache, false)
+  }
+
+  _normalizeSessionPathList (list, expectedType) {
+    if (!Array.isArray(list)) {
+      return []
+    }
+
+    const result = []
+    const cache = new Set()
+    for (const rawPath of list) {
+      if (typeof rawPath !== 'string' || !rawPath) {
+        continue
+      }
+
+      const info = normalizeMarkdownPath(rawPath)
+      if (!info) {
+        continue
+      }
+      if (expectedType === 'dir' && !info.isDir) {
+        continue
+      }
+      if (expectedType === 'file' && info.isDir) {
+        continue
+      }
+
+      const normalized = path.normalize(info.path)
+      if (!cache.has(normalized)) {
+        cache.add(normalized)
+        result.push(normalized)
+      }
+    }
+    return result
+  }
+
+  _collectLastSessionSnapshot () {
+    const windows = []
+
+    for (const window of this._windowManager.windows.values()) {
+      if (window.type !== WindowType.EDITOR) {
+        continue
+      }
+
+      const rootDirectories = this._normalizeSessionPathList(window.openedRootDirectories, 'dir')
+      const openedFiles = this._normalizeSessionPathList(window.openedFiles, 'file')
+      if (rootDirectories.length === 0 && openedFiles.length === 0) {
+        continue
+      }
+
+      windows.push({ rootDirectories, openedFiles })
+    }
+
+    return {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      windows
+    }
+  }
+
+  _persistLastSession (snapshot = null) {
+    try {
+      if (!snapshot) {
+        snapshot = this._collectLastSessionSnapshot()
+      }
+      fs.writeFileSync(this._sessionFilePath, JSON.stringify(snapshot, null, 2), 'utf8')
+    } catch (error) {
+      log.error('Failed to persist last session:', error)
+    }
+  }
+
+  _restoreLastSession () {
+    if (!fs.existsSync(this._sessionFilePath)) {
+      return false
+    }
+
+    try {
+      const content = fs.readFileSync(this._sessionFilePath, 'utf8')
+      const parsed = JSON.parse(content || '{}')
+      if (!parsed || !Array.isArray(parsed.windows) || parsed.windows.length === 0) {
+        return false
+      }
+
+      let restoredWindows = 0
+      for (const item of parsed.windows) {
+        const rootDirectories = this._normalizeSessionPathList(item.rootDirectories, 'dir')
+        const openedFiles = this._normalizeSessionPathList(item.openedFiles, 'file')
+        if (rootDirectories.length === 0 && openedFiles.length === 0) {
+          continue
+        }
+
+        const editor = this._createEditorWindow(rootDirectories[0] || null, openedFiles)
+        for (const dir of rootDirectories.slice(1)) {
+          editor.openFolder(dir, true)
+        }
+        restoredWindows++
+      }
+
+      return restoredWindows > 0
+    } catch (error) {
+      log.error('Failed to restore last session:', error)
+      return false
+    }
   }
 
   /**
@@ -607,6 +730,12 @@ class App {
 
     ipcMain.handle('mt::fs-trash-item', async (event, fullPath) => {
       return shell.trashItem(fullPath)
+    })
+
+    // User canceled quit flow (e.g. canceled save/discard dialog).
+    ipcMain.on('app-quit-cancelled', () => {
+      this._isQuitConfirmed = false
+      this._quitSessionSnapshot = null
     })
   }
 }

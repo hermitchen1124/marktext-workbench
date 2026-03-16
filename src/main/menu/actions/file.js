@@ -349,6 +349,7 @@ ipcMain.on('mt::close-window-confirm', async (e, unsavedFiles) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   const userResult = await showUnsavedFilesMessage(win, unsavedFiles)
   if (!userResult) {
+    ipcMain.emit('app-quit-cancelled')
     return
   }
 

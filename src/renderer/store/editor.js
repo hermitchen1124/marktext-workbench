@@ -513,6 +513,14 @@ const actions = {
 
   LISTEN_FOR_CLOSE ({ state }) {
     ipcRenderer.on('mt::ask-for-close', e => {
+      const openedFilePaths = state.tabs
+        .filter(file => !!file.pathname)
+        .map(file => file.pathname)
+      const activeFilePath = state.currentFile && state.currentFile.pathname
+        ? state.currentFile.pathname
+        : ''
+      ipcRenderer.send('mt::window-session-state', { openedFilePaths, activeFilePath })
+
       const unsavedFiles = state.tabs
         .filter(file => !file.isSaved)
         .map(file => {

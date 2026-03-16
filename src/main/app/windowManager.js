@@ -384,6 +384,16 @@ class WindowManager extends EventEmitter {
       }
     })
 
+    ipcMain.on('mt::window-session-state', (e, sessionState = {}) => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      const editor = this.get(win.id)
+      if (!editor || typeof editor.applyOpenedFilesSession !== 'function') {
+        return
+      }
+      const { openedFilePaths = [], activeFilePath = '' } = sessionState
+      editor.applyOpenedFilesSession(openedFilePaths, activeFilePath)
+    })
+
     ipcMain.on('mt::window-toggle-always-on-top', e => {
       const win = BrowserWindow.fromWebContents(e.sender)
       const flag = !win.isAlwaysOnTop()

@@ -554,6 +554,36 @@ class EditorWindow extends BaseWindow {
     return this._openedRootDirectories ? [...this._openedRootDirectories] : []
   }
 
+  get openedFiles () {
+    return this._openedFiles ? [...this._openedFiles] : []
+  }
+
+  applyOpenedFilesSession (openedFiles = [], activeFilePath = '') {
+    if (!Array.isArray(openedFiles)) {
+      return
+    }
+
+    const normalized = []
+    const cache = new Set()
+    for (const rawPath of openedFiles) {
+      if (typeof rawPath !== 'string' || !rawPath) {
+        continue
+      }
+      const filePath = path.normalize(rawPath)
+      if (!cache.has(filePath)) {
+        cache.add(filePath)
+        normalized.push(filePath)
+      }
+    }
+
+    if (activeFilePath && cache.has(path.normalize(activeFilePath))) {
+      const normalizedActivePath = path.normalize(activeFilePath)
+      this._openedFiles = [normalizedActivePath, ...normalized.filter(p => p !== normalizedActivePath)]
+    } else {
+      this._openedFiles = normalized
+    }
+  }
+
   // --- private ---------------------------------
 
   /**
