@@ -302,17 +302,28 @@ class WindowManager extends EventEmitter {
 
     const { id: windowId } = browserWindow
     const { _appMenu, _windows } = this
+    const window = this.get(windowId)
+
+    // Capture session data of the last editor window before it is removed.
+    // This avoids losing session state when app.quit() is triggered after closing
+    // the final window and before-quit sees an already-empty window list.
+    if (_windows.size === 1 && window && window.type === WindowType.EDITOR) {
+      ipcMain.emit('window-manager-last-editor-state', null, {
+        rootDirectories: window.openedRootDirectories,
+        openedFiles: window.openedFiles
+      })
+    }
 
     // Free watchers used by this window
     this._watcher.unwatchByWindowId(windowId)
 
     // Application clearup and remove listeners
     _appMenu.removeWindowMenu(windowId)
-    const window = this.remove(windowId)
+    const removedWindow = this.remove(windowId)
 
     // Destroy window wrapper and browser window
-    if (window) {
-      window.destroy()
+    if (removedWindow) {
+      removedWindow.destroy()
     } else {
       log.error('Something went wrong: Cannot find associated application window!')
       browserWindow.destroy()

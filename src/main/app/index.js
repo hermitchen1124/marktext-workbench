@@ -269,7 +269,25 @@ class App {
 
   beforeQuit = () => {
     this._isQuitConfirmed = true
-    this._quitSessionSnapshot = this._collectLastSessionSnapshot()
+    const currentSnapshot = this._collectLastSessionSnapshot()
+
+    if (!this._quitSessionSnapshot || !Array.isArray(this._quitSessionSnapshot.windows) || this._quitSessionSnapshot.windows.length === 0) {
+      this._quitSessionSnapshot = currentSnapshot
+      return
+    }
+
+    // Merge any still-open windows into the pre-captured snapshot.
+    if (currentSnapshot && Array.isArray(currentSnapshot.windows) && currentSnapshot.windows.length) {
+      const cache = new Set(this._quitSessionSnapshot.windows.map(item => JSON.stringify(item)))
+      for (const item of currentSnapshot.windows) {
+        const key = JSON.stringify(item)
+        if (!cache.has(key)) {
+          cache.add(key)
+          this._quitSessionSnapshot.windows.push(item)
+        }
+      }
+      this._quitSessionSnapshot.savedAt = new Date().toISOString()
+    }
   }
 
   willQuit = () => {
@@ -379,6 +397,11 @@ class App {
       if (!snapshot) {
         snapshot = this._collectLastSessionSnapshot()
       }
+
+      // Never overwrite an existing usable session with an empty one.
+      if (!snapshot || !Array.isArray(snapshot.windows) || snapshot.windows.length === 0) {
+        return
+      }
       fs.writeFileSync(this._sessionFilePath, JSON.stringify(snapshot, null, 2), 'utf8')
     } catch (error) {
       log.error('Failed to persist last session:', error)
@@ -405,8 +428,11 @@ class App {
           continue
         }
 
-        const editor = this._createEditorWindow(rootDirectories[0] || null, openedFiles)
-        for (const dir of rootDirectories.slice(1)) {
+        // Create an empty window first, then re-open all directories in order.
+        // Otherwise the internal "open first root with keepExisting=false" path
+        // may clear queued sibling directories before the window is ready.
+        const editor = this._createEditorWindow(null, openedFiles)
+        for (const dir of rootDirectories) {
           editor.openFolder(dir, true)
         }
         restoredWindows++
@@ -702,6 +728,20 @@ class App {
     ipcMain.on('mt::make-screenshot', e => {
       const win = BrowserWindow.fromWebContents(e.sender)
       ipcMain.emit('screen-capture', win)
+    })
+
+    ipcMain.on('window-manager-last-editor-state', (e, sessionState = {}) => {
+      const rootDirectories = this._normalizeSessionPathList(sessionState.rootDirectories, 'dir')
+      const openedFiles = this._normalizeSessionPathList(sessionState.openedFiles, 'file')
+      if (rootDirectories.length === 0 && openedFiles.length === 0) {
+        return
+      }
+
+      this._quitSessionSnapshot = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        windows: [{ rootDirectories, openedFiles }]
+      }
     })
 
     ipcMain.on('mt::request-keybindings', e => {

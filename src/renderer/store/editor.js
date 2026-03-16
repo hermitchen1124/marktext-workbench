@@ -522,7 +522,16 @@ const actions = {
       ipcRenderer.send('mt::window-session-state', { openedFilePaths, activeFilePath })
 
       const unsavedFiles = state.tabs
-        .filter(file => !file.isSaved)
+        .filter(file => {
+          if (file.isSaved) {
+            return false
+          }
+          // Ignore empty untitled tabs to avoid blocking close with unnecessary dialogs.
+          if (!file.pathname && !/[^\n\s]/.test(file.markdown || '')) {
+            return false
+          }
+          return true
+        })
         .map(file => {
           const { id, filename, pathname, markdown } = file
           const options = getOptionsFromState(file)

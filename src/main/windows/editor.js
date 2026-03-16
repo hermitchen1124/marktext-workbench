@@ -228,7 +228,7 @@ class EditorWindow extends BaseWindow {
         this._closeRequestPending = false
         this._closeRequestTimer = null
         ipcMain.emit('window-close-by-id', win.id)
-      }, 3000)
+      }, 1200)
 
       // TODO: Close all watchers etc. Should we do this manually or listen to 'quit' event?
     })

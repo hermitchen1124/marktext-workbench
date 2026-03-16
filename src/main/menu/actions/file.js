@@ -191,6 +191,10 @@ const handleResponseForSave = async (e, {
 }
 
 const showUnsavedFilesMessage = async (win, files) => {
+  if (!Array.isArray(files) || files.length === 0) {
+    return { needSave: false }
+  }
+
   const { response } = await dialog.showMessageBox(win, {
     type: 'warning',
     buttons: ['Save', 'Cancel', 'Don\'t save'],
