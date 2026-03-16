@@ -1,4 +1,16 @@
-import ced from 'ced'
+let detectEncodingByCed = null
+
+try {
+  // `ced` is a native dependency and may be missing in some packaged builds.
+  // Fallback gracefully instead of crashing the whole app.
+  // eslint-disable-next-line global-require
+  const ced = require('ced')
+  if (typeof ced === 'function') {
+    detectEncodingByCed = ced
+  }
+} catch (error) {
+  detectEncodingByCed = null
+}
 
 const CED_ICONV_ENCODINGS = {
   'BIG5-CP950': 'big5',
@@ -62,8 +74,8 @@ export const guessEncoding = (buffer, autoGuessEncoding) => {
   // }
 
   // Auto guess encoding, otherwise use UTF8.
-  if (autoGuessEncoding) {
-    encoding = ced(buffer)
+  if (autoGuessEncoding && detectEncodingByCed) {
+    encoding = detectEncodingByCed(buffer)
     if (CED_ICONV_ENCODINGS[encoding]) {
       encoding = CED_ICONV_ENCODINGS[encoding]
     } else {
