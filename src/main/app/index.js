@@ -28,6 +28,7 @@ class App {
     this._args = args || { _: [] }
     this._openFilesCache = []
     this._openFilesTimer = null
+    this._didInitReady = false
     this._windowManager = this._accessor.windowManager
     // this.launchScreenshotWin = null // The window which call the screenshot.
     // this.shortcutCapture = null
@@ -96,7 +97,11 @@ class App {
       // On OS X it's common to re-create a window in the app when the
       // dock icon is clicked and there are no other windows open.
       if (this._windowManager.windowCount === 0) {
-        this.ready()
+        if (app.isReady()) {
+          this.ready()
+        } else {
+          app.once('ready', this.ready)
+        }
       }
     })
 
@@ -121,6 +126,17 @@ class App {
   }
 
   ready = () => {
+    // Guard against edge cases where activate/open-file can race ready.
+    if (!app.isReady()) {
+      app.once('ready', this.ready)
+      return
+    }
+    // Avoid running startup initialization twice for the first app launch.
+    if (this._didInitReady && this._windowManager.windowCount > 0) {
+      return
+    }
+    this._didInitReady = true
+
     const { _args: args, _openFilesCache } = this
     const { preferences } = this._accessor
 

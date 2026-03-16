@@ -1,5 +1,5 @@
 import path from 'path'
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { enable as remoteEnable } from '@electron/remote/main'
 import log from 'electron-log'
 import windowStateKeeper from 'electron-window-state'
@@ -10,6 +10,30 @@ import { TITLE_BAR_HEIGHT, editorWinOptions, isLinux, isOsx } from '../config'
 import { showEditorContextMenu } from '../contextMenu/editor'
 import { loadMarkdownFile } from '../filesystem/markdown'
 import { switchLanguage } from '../spellchecker'
+
+const createWindowState = () => {
+  const fallbackState = {
+    x: undefined,
+    y: undefined,
+    width: 1200,
+    height: 800,
+    manage: () => {}
+  }
+
+  if (!app.isReady()) {
+    return fallbackState
+  }
+
+  try {
+    return windowStateKeeper({
+      defaultWidth: 1200,
+      defaultHeight: 800
+    })
+  } catch (error) {
+    log.warn('window-state keeper unavailable, using fallback state:', error && error.message ? error.message : error)
+    return fallbackState
+  }
+}
 
 class EditorWindow extends BaseWindow {
   /**
@@ -46,10 +70,7 @@ class EditorWindow extends BaseWindow {
     const { menu: appMenu, env, preferences } = this._accessor
     const addBlankTab = !rootDirectory && fileList.length === 0 && markdownList.length === 0
 
-    const mainWindowState = windowStateKeeper({
-      defaultWidth: 1200,
-      defaultHeight: 800
-    })
+    const mainWindowState = createWindowState()
 
     const { x, y, width, height } = ensureWindowPosition(mainWindowState)
     const winOptions = Object.assign({ x, y, width, height }, editorWinOptions, options)
