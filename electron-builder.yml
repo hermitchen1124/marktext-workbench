@@ -1,13 +1,14 @@
-productName: "MarkText"
-appId: "com.github.marktext.marktext"
+productName: "MarkText Workbench"
+appId: "com.hermitchen1124.marktext.workbench"
 
 asar: true
 asarUnpack:
 - "**/*.node"
 directories:
   output: "build"
-# Workaround: Don't download prebuilt libraries (GH#2953).
-buildDependenciesFromSource: true
+# Use prebuilt native binaries during packaging in this project.
+buildDependenciesFromSource: false
+npmRebuild: false
 files:
 - "dist/electron/**/*"
 # Don't bundle these files
@@ -26,7 +27,6 @@ files:
 - "!node_modules/vscode-ripgrep/download.js"
 - "!node_modules/vscode-ripgrep/postinstall.js"
 # Don't bundle build files
-- "!node_modules/ced/bin"
 - "!node_modules/ced/vendor"
 - "!node_modules/fontmanager-redux/bin"
 - "!node_modules/keyboard-layout/bin"
@@ -67,7 +67,7 @@ fileAssociations:
   role: "Editor"
   icon: "../resources/icons/md.icns"
 mac:
-  artifactName: "marktext-${arch}-mac.${ext}"
+  artifactName: "marktext-workbench-${arch}-mac.${ext}"
   icon: "resources/icons/icon.icns"
   darkModeSupport: true
   target:
@@ -76,7 +76,7 @@ mac:
     - target: zip
       arch: [x64, arm64]
 dmg:
-  artifactName: "marktext-${arch}.${ext}"
+  artifactName: "marktext-workbench-${arch}.${ext}"
   contents:
   - x: 410
     y: 240
@@ -86,7 +86,7 @@ dmg:
     y: 240
     type: "file"
 win:
-  artifactName: "marktext-${arch}-win.${ext}"
+  artifactName: "marktext-workbench-${arch}-win.${ext}"
   icon: "resources/icons/icon.ico"
   target:
   - target: "nsis"
@@ -95,14 +95,14 @@ win:
     arch: [ia32, x64]
   requestedExecutionLevel: "asInvoker"
 nsis:
-  artifactName: "marktext-setup.${ext}"
+  artifactName: "marktext-workbench-setup.${ext}"
   perMachine: false
   oneClick: false
   allowToChangeInstallationDirectory: true
   include: "resources/windows/installer.nsh"
 linux:
-  artifactName: "marktext-${arch}.${ext}"
-  executableName: "marktext"
+  artifactName: "marktext-workbench-${arch}.${ext}"
+  executableName: "marktext-workbench"
   description: "A simple and elegant open-source markdown editor that focused on speed and usability."
   maintainer: "MarkText Contributors"
   category: "Office;TextEditor;Utility"
