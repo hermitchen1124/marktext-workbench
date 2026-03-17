@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-win-x64:
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 120
     steps:
     - name: Checkout
@@ -26,6 +26,9 @@ jobs:
       run: yarn install --frozen-lockfile --network-timeout 600000 --ignore-scripts
 
     - name: Install app deps for electron (win x64)
+      env:
+        DEBUG: electron-builder
+        GYP_MSVS_VERSION: "2022"
       run: npx electron-builder install-app-deps --platform win32 --arch x64
 
     - name: Build windows packages
