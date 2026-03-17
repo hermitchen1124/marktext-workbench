@@ -6,7 +6,7 @@ on:
 jobs:
   build-win-x64:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -17,16 +17,16 @@ jobs:
         node-version: 16
         cache: yarn
 
-    # Workaround from upstream MarkText workflow for native module builds on newer runners.
-    - name: Fix node-gyp
-      run: |
-        npm install --global node-gyp@latest
-        npm prefix -g | % { npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js" }
-        node-gyp install
-      shell: pwsh
+    - name: Setup Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
     - name: Install dependencies
-      run: yarn install --check-files --frozen-lockfile --network-timeout 600000
+      run: yarn install --frozen-lockfile --network-timeout 600000 --ignore-scripts
+
+    - name: Install app deps for electron (win x64)
+      run: npx electron-builder install-app-deps --platform win32 --arch x64
 
     - name: Build windows packages
       env:
