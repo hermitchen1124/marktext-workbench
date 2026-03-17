@@ -1,7 +1,7 @@
 {
   "name": "marktext-workbench",
   "productName": "MarkText Workbench",
-  "version": "1.0.8",
+  "version": "0.0.1",
   "homepage": "https://github.com/hermitchen1124/marktext-workbench/",
   "description": "MarkText workbench edition with multi-folder sidebar and md/txt/json support",
   "license": "MIT",

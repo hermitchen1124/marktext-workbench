@@ -64,6 +64,22 @@ export default {
         lineWrapping: true,
         styleActiveLine: true,
         direction: textDirection,
+        foldGutter: true,
+        gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+        extraKeys: {
+          'Cmd-F': 'findPersistent',
+          'Ctrl-F': 'findPersistent',
+          'Cmd-G': 'findNext',
+          'Ctrl-G': 'findNext',
+          'Shift-Cmd-G': 'findPrev',
+          'Shift-Ctrl-G': 'findPrev',
+          'Cmd-Z': 'undo',
+          'Ctrl-Z': 'undo',
+          'Shift-Cmd-Z': 'redo',
+          'Shift-Ctrl-Z': 'redo',
+          'Cmd-Y': 'redo',
+          'Ctrl-Y': 'redo'
+        },
         // The amount of updates needed when scrolling. Settings this to >Infinity< or use CSS
         // >height: auto< result in bad performance because the whole document is always rendered.
         // Since we are using >height: auto< setting this to >Infinity< to fix #171. The best
@@ -84,10 +100,19 @@ export default {
 
       // Init CodeMirror
       const editor = this.editor = codeMirror(container, codeMirrorConfig)
+      editor.setOption('foldOptions', {
+        widget: '{...}'
+      })
 
       bus.$on('file-loaded', this.handleFileChange)
       bus.$on('invalidate-image-cache', this.handleInvalidateImageCache)
       bus.$on('file-changed', this.handleFileChange)
+      bus.$on('undo', this.handleUndo)
+      bus.$on('redo', this.handleRedo)
+      bus.$on('find', this.handleFind)
+      bus.$on('replace', this.handleReplace)
+      bus.$on('find-action', this.handleFindAction)
+      bus.$on('editor-focus', this.focusEditor)
       bus.$on('selectAll', this.handleSelectAll)
       bus.$on('image-action', this.handleImageAction)
 
@@ -120,6 +145,12 @@ export default {
     bus.$off('file-loaded', this.handleFileChange)
     bus.$off('invalidate-image-cache', this.handleInvalidateImageCache)
     bus.$off('file-changed', this.handleFileChange)
+    bus.$off('undo', this.handleUndo)
+    bus.$off('redo', this.handleRedo)
+    bus.$off('find', this.handleFind)
+    bus.$off('replace', this.handleReplace)
+    bus.$off('find-action', this.handleFindAction)
+    bus.$off('editor-focus', this.focusEditor)
     bus.$off('selectAll', this.handleSelectAll)
     bus.$off('image-action', this.handleImageAction)
 
@@ -179,7 +210,7 @@ export default {
     },
     listenChange () {
       const { editor } = this
-      editor.on('cursorActivity', cm => {
+      const scheduleCommit = cm => {
         const { cursor, markdown } = this.getMarkdownAndCursor(cm)
         // Attention: the cursor may be `{focus: null, anchor: null}` when press `backspace`
         const wordCount = getWordCount(markdown)
@@ -195,7 +226,11 @@ export default {
             }
           }
         }, 1000)
-      })
+      }
+
+      // Commit content changes even when cursor doesn't move (e.g. quick save right after typing).
+      editor.on('changes', scheduleCommit)
+      editor.on('cursorActivity', scheduleCommit)
     },
     // Another tab was selected - only listen to get changes but don't set history or other things.
     handleFileChange ({ id, markdown, cursor }) {
@@ -219,8 +254,44 @@ export default {
       const { filename = '' } = this.currentTab || {}
       if (/\.json$/i.test(filename)) {
         setMode(this.editor, 'json')
+      } else if (/\.(txt|text)$/i.test(filename)) {
+        this.editor.setOption('mode', null)
       } else {
         setMode(this.editor, 'markdown')
+      }
+    },
+    focusEditor () {
+      if (this.editor) {
+        this.editor.focus()
+      }
+    },
+    handleUndo () {
+      if (this.editor) {
+        this.editor.undo()
+      }
+    },
+    handleRedo () {
+      if (this.editor) {
+        this.editor.redo()
+      }
+    },
+    handleFind () {
+      if (!this.editor) return
+      this.focusEditor()
+      this.editor.execCommand('findPersistent')
+    },
+    handleReplace () {
+      if (!this.editor) return
+      this.focusEditor()
+      this.editor.execCommand('replace')
+    },
+    handleFindAction (action) {
+      if (!this.editor) return
+      this.focusEditor()
+      if (action === 'findNext') {
+        this.editor.execCommand('findNext')
+      } else if (action === 'findPrev') {
+        this.editor.execCommand('findPrev')
       }
     },
     // Get markdown and cursor from CodeMirror.
@@ -299,6 +370,17 @@ export default {
   .source-code .CodeMirror-gutters {
     border-right: none;
     background-color: transparent;
+  }
+  .source-code .CodeMirror-foldgutter {
+    width: 14px;
+  }
+  .source-code .CodeMirror-foldgutter-open::after {
+    content: '▾';
+    color: var(--themeColor);
+  }
+  .source-code .CodeMirror-foldgutter-folded::after {
+    content: '▸';
+    color: var(--themeColor);
   }
   .source-code .CodeMirror-activeline-background,
   .source-code .CodeMirror-activeline-gutter {
