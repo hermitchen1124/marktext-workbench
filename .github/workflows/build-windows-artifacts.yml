@@ -1,0 +1,35 @@
+name: Build Windows Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-win-x64:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 16
+        cache: yarn
+
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile --network-timeout 600000
+
+    - name: Build windows packages
+      env:
+        CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npx electron-builder --win nsis zip --x64 --publish never
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: marktext-workbench-win-x64
+        path: |
+          build/marktext-workbench-setup.exe
+          build/marktext-workbench-x64-win.zip
+          build/marktext-workbench-x64-win.zip.blockmap
