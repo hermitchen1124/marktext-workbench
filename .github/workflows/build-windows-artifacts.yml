@@ -27,7 +27,10 @@ jobs:
         npm_config_target_arch: x64
       run: |
         npm config set python python
-        yarn install --frozen-lockfile --network-timeout 600000
+        yarn install --frozen-lockfile --network-timeout 600000 --ignore-scripts
+
+    - name: Install app deps for electron (win x64)
+      run: npx electron-builder install-app-deps --platform win32 --arch x64
 
     - name: Build windows packages
       env:
